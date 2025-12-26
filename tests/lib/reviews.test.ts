@@ -5,7 +5,6 @@ import { fetchReviews } from '../../lib/reviews';
 
 describe('fetchReviews', () => {
   it('throws when appId missing', async () => {
-    // @ts-expect-error - testing runtime behavior when missing appId
     await expect(fetchReviews({ appId: '' })).rejects.toThrow();
   });
 
@@ -19,7 +18,6 @@ describe('fetchReviews', () => {
       },
     };
 
-    // @ts-expect-error
     global.fetch = vi.fn(async () => ({ ok: true, json: async () => fakeJson } as unknown as Response));
 
     const res = await fetchReviews({ appId: '123', country: 'us', pages: 1, maxPages: 2 });
@@ -32,7 +30,6 @@ describe('fetchReviews', () => {
     const page1 = { feed: { entry: [{ id: { label: '1' }, author: { name: { label: 'A' } }, content: { label: 'a' }, 'im:rating': { label: '5' }, updated: { label: '2020-01-01' } }], link: [{ rel: 'next', href: 'https://example.com/next' }] } };
     const page2 = { feed: { entry: [{ id: { label: '2' }, author: { name: { label: 'B' } }, content: { label: 'b' }, 'im:rating': { label: '4' }, updated: { label: '2020-01-02' } }] } };
 
-    // @ts-expect-error
     global.fetch = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => page1 } as unknown as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => page2 } as unknown as Response);

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import ReviewsList from '../../components/ReviewsList';
+import type { Review } from '../../lib/reviews';
 
 export default function ReviewsPage() {
   const [appId, setAppId] = useState('1465992052');
@@ -9,23 +10,30 @@ export default function ReviewsPage() {
   const [pages, setPages] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      console.log('make request')
       const res = await fetch(`/api/reviews?appId=${encodeURIComponent(appId)}&country=${encodeURIComponent(country)}&pages=${pages}`);
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
       setReviews(data.reviews || []);
-    } catch (e: any) {
-      setError(String(e?.message || e));
+    } catch (e: unknown) {
+      setError(String((e as Error)?.message ?? e));
     } finally {
       setLoading(false);
     }
   }
+
+  React.useEffect(() => {
+    // Auto-load reviews once when the component mounts
+    load();
+    // Intentionally run only once on mount. If you want auto-reload when inputs change,
+    // add appId/country/pages to the dependency array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ padding: 20 }}>
@@ -47,4 +55,3 @@ export default function ReviewsPage() {
     </div>
   );
 }
-

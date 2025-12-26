@@ -11,7 +11,7 @@ export type Review = {
   version?: string;
   date: string; // ISO
   country?: string;
-  raw?: any;
+  raw?: Record<string, unknown>;
 };
 
 export type FetchReviewsResult = {
@@ -28,30 +28,36 @@ export type FetchReviewsResult = {
 async function safeJson(response: Response) {
   try {
     return await response.json();
-  } catch (e) {
+  } catch (_err) {
     return null;
   }
 }
 
 // Parse reviews from the iTunes RSS JSON feed structure.
-function parseReviewsFromFeed(json: any, country?: string): Review[] {
-  if (!json) return [];
-  // The iTunes RSS feed for reviews has a `feed.entry` array; the first entry may be the app info.
-  const entries = json?.feed?.entry;
-  if (!Array.isArray(entries)) return [];
+function getAsRecord(x: unknown): Record<string, unknown> | null {
+  if (x && typeof x === 'object') return x as Record<string, unknown>;
+  return null;
+}
 
-  // Filter out entries that don't look like reviews (app info sometimes included).
-  const reviews = entries
-    .map((e: any) => {
-      // Typical structure fields: id.label, author.name.label, title.label, content.label, im:rating.label, updated.label, im:version?.label
-      const id = e?.id?.label || e?.id?.attributes?.['im:id'] || JSON.stringify(e?.id) || Math.random().toString(36).slice(2);
-      const author = e?.author?.name?.label || e?.author?.name || 'Unknown';
-      const title = e?.title?.label || e?.title;
-      const content = e?.content?.label || e?.content || '';
-      const ratingRaw = e?.['im:rating']?.label || e?.rating || null;
-      const rating = ratingRaw ? parseInt(ratingRaw, 10) : 0;
-      const version = e?.['im:version']?.label || e?.version?.label || undefined;
-      const date = e?.updated?.label || e?.['updated']?.label || e?.published?.label || new Date().toISOString();
+function parseReviewsFromFeed(json: unknown, country?: string): Review[] {
+  if (!json) return [];
+  const root = getAsRecord(json);
+  if (!root) return [];
+  const feed = getAsRecord(root['feed']);
+  const entries = Array.isArray(feed?.['entry']) ? (feed!['entry'] as unknown[]) : undefined;
+  if (!entries) return [];
+
+  const parsed: Review[] = entries
+    .map((entry) => {
+      const e = getAsRecord(entry) || {};
+      const id = (e['id'] && getAsRecord(e['id'])?.['label']) || (getAsRecord(e['id']) && getAsRecord(getAsRecord(e['id'])!['attributes'])?.['im:id']) || JSON.stringify(e['id']) || Math.random().toString(36).slice(2);
+      const author = (getAsRecord(e['author']) && getAsRecord(getAsRecord(e['author'])!['name'])?.['label']) || String(getAsRecord(e['author'])?.['name'] ?? 'Unknown');
+      const title = (getAsRecord(e['title'])?.['label']) ?? undefined;
+      const content = (getAsRecord(e['content'])?.['label']) ?? (e['content'] ? String(e['content']) : '');
+      const ratingRaw = (getAsRecord(e['im:rating'])?.['label']) ?? e['rating'] ?? null;
+      const rating = ratingRaw ? parseInt(String(ratingRaw), 10) : 0;
+      const version = getAsRecord(e['im:version'])?.['label'] ?? getAsRecord(e['version'])?.['label'] ?? undefined;
+      const date = (getAsRecord(e['updated'])?.['label']) ?? (e['published'] ? String(e['published']) : new Date().toISOString());
 
       return {
         id: String(id),
@@ -60,34 +66,38 @@ function parseReviewsFromFeed(json: any, country?: string): Review[] {
         content: String(content),
         rating: Number.isFinite(rating) ? rating : 0,
         version: version ? String(version) : undefined,
-        date: new Date(date).toISOString(),
+        date: new Date(String(date)).toISOString(),
         country,
         raw: e,
       } as Review;
     })
-    // sometimes the first entry is the app metadata which doesn't have im:rating; filter those out
-    .filter((r: Review) => r.rating >= 0 && r.content !== undefined);
+    .filter((r) => r.content !== undefined);
 
-  return reviews;
+  return parsed;
 }
 
-function findNextLink(json: any): string | null {
-  // The iTunes RSS JSON sometimes includes feed.link array with rel="next" and href
-  const links = json?.feed?.link;
+function findNextLink(json: unknown): string | null {
+  const root = getAsRecord(json);
+  if (!root) return null;
+  const feed = getAsRecord(root['feed']);
+  const links = feed?.['link'];
   if (Array.isArray(links)) {
     for (const l of links) {
-      const rel = l?.rel || l?.attributes?.rel;
-      const href = l?.href || l?.attributes?.href || l?.label;
-      if (rel === 'next' && href) return href;
+      const link = getAsRecord(l) || {};
+      const attrs = getAsRecord(l) ? getAsRecord(getAsRecord(l)!['attributes']) : undefined;
+      const rel = (typeof link['rel'] !== 'undefined') ? link['rel'] : attrs?.['rel'];
+      const href = (typeof link['href'] !== 'undefined') ? link['href'] : (attrs?.['href'] ?? link['label']);
+      if (rel === 'next' && href) return String(href);
     }
   } else if (links && typeof links === 'object') {
-    const rel = links?.rel || links?.attributes?.rel;
-    const href = links?.href || links?.attributes?.href || links?.label;
-    if (rel === 'next' && href) return href;
+    const link = getAsRecord(links) || {};
+    const attrs = getAsRecord(links) ? getAsRecord(getAsRecord(links)!['attributes']) : undefined;
+    const rel = (typeof link['rel'] !== 'undefined') ? link['rel'] : attrs?.['rel'];
+    const href = (typeof link['href'] !== 'undefined') ? link['href'] : (attrs?.['href'] ?? link['label']);
+    if (rel === 'next' && href) return String(href);
   }
 
-  // Some feeds include a top-level "next" property
-  if (typeof json?.next === 'string') return json.next;
+  if (typeof root['next'] === 'string') return root['next'] as string;
 
   return null;
 }
@@ -98,15 +108,17 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
 
   const baseUrl = (id: string, c: string) => `https://itunes.apple.com/${c}/rss/customerreviews/id=${encodeURIComponent(id)}/sortBy=mostRecent/json`;
 
-  let nextUrl = baseUrl(appId, country);
+  let nextUrl: string | null = baseUrl(appId, country);
   const collected: Review[] = [];
   let fetched = 0;
   let partial = false;
 
-  while (nextUrl && fetched < requestedPages) {
+  for (let i = 0; i < requestedPages; i++) {
+    const currentUrl = nextUrl;
+    if (!currentUrl) break;
     fetched += 1;
     try {
-      const res = await fetch(nextUrl, { method: 'GET' });
+      const res = await fetch(currentUrl, { method: 'GET' });
       if (!res.ok) {
         partial = collected.length > 0;
         break;
@@ -115,23 +127,16 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
       const reviews = parseReviewsFromFeed(json, country);
       collected.push(...reviews);
 
-      // Find next link
       const found = findNextLink(json);
-      if (found && typeof found === 'string') {
-        // If the found link is relative, make absolute by using it as-is (itunes returns absolute links)
-        nextUrl = found;
-      } else {
-        nextUrl = null;
-      }
-
-      // Small delay could be added here if needed
-    } catch (e) {
+      nextUrl = found ?? null;
+    } catch (err: unknown) {
+      // Use the caught error to help debugging but continue to set partial flag
+      // eslint-disable-next-line no-console
+      console.error('fetchReviews error:', err);
       partial = collected.length > 0;
       break;
     }
   }
-
-  console.log(collected)
 
   return {
     reviews: collected,
