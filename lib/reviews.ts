@@ -81,22 +81,30 @@ function findNextLink(json: unknown): string | null {
   if (!root) return null;
   const feed = getAsRecord(root['feed']);
   const links = feed?.['link'];
+
+  const inspectLink = (l: any): string | null => {
+    if (l.attributes.rel === 'next' && typeof l.attributes.href === 'string') {
+      const matches = l.attributes.href.match(/\/(page=\d+\/id=\d+\/sortby=mostrecent)\/xml\?/);
+      if (matches && matches.length) {
+        // todo hardcoded country code `ca`
+        return `https://itunes.apple.com/ca/rss/customerreviews/${matches[1]}/json`;
+      }
+    }
+    return null
+  };
+
   if (Array.isArray(links)) {
     for (const l of links) {
-      const link = getAsRecord(l) || {};
-      const attrs = getAsRecord(l) ? getAsRecord(getAsRecord(l)!['attributes']) : undefined;
-      const rel = (typeof link['rel'] !== 'undefined') ? link['rel'] : attrs?.['rel'];
-      const href = (typeof link['href'] !== 'undefined') ? link['href'] : (attrs?.['href'] ?? link['label']);
-      if (rel === 'next' && href) return String(href);
+      const found = inspectLink(l);
+      if (found) return found;
     }
   } else if (links && typeof links === 'object') {
-    const link = getAsRecord(links) || {};
-    const attrs = getAsRecord(links) ? getAsRecord(getAsRecord(links)!['attributes']) : undefined;
-    const rel = (typeof link['rel'] !== 'undefined') ? link['rel'] : attrs?.['rel'];
-    const href = (typeof link['href'] !== 'undefined') ? link['href'] : (attrs?.['href'] ?? link['label']);
-    if (rel === 'next' && href) return String(href);
+    const found = inspectLink(links);
+    if (found) return found;
   }
 
+  // Fallbacks: some feeds expose next at feed.next or root.next
+  if (typeof feed?.['next'] === 'string') return feed['next'] as string;
   if (typeof root['next'] === 'string') return root['next'] as string;
 
   return null;
@@ -109,6 +117,7 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
   const baseUrl = (id: string, c: string) => `https://itunes.apple.com/${c}/rss/customerreviews/id=${encodeURIComponent(id)}/sortBy=mostRecent/json`;
 
   let nextUrl: string | null = baseUrl(appId, country);
+
   const collected: Review[] = [];
   let fetched = 0;
   let partial = false;
@@ -124,10 +133,14 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
         break;
       }
       const json = await safeJson(res);
+
       const reviews = parseReviewsFromFeed(json, country);
       collected.push(...reviews);
-
       const found = findNextLink(json);
+
+      if (!found) {
+        throw new Error('?')
+      }
       nextUrl = found ?? null;
     } catch (err: unknown) {
       // Use the caught error to help debugging but continue to set partial flag
