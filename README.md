@@ -1,4 +1,4 @@
-# iOS Better Understanding Reviews
+# iTunes App Review Aggregator
 
 A small Next.js app that fetches iTunes / App Store customer reviews for an app, shows the list of reviews and an interactive chart that visualizes rating trends (a moving average) over time.
 
