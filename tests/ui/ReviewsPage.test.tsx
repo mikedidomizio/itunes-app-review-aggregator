@@ -21,6 +21,8 @@ describe('ReviewsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument();
       expect(screen.getByText('Nice')).toBeInTheDocument();
+      // Chart should be present
+      expect(screen.getByLabelText('Average rating chart')).toBeInTheDocument();
     });
   });
 });
