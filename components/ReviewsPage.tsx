@@ -122,9 +122,9 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
           // Clamp to [1, MAX_PAGES]
           const clamped = Math.max(1, Math.min(Math.trunc(v), MAX_PAGES));
           setPages(clamped);
-        }} style={{ width: 60 }} />
+        }} style={{ width: 60, background: '#fff', color: '#000' }} />
         <label style={{ marginLeft: 12, marginRight: 8 }}>Window</label>
-        <select aria-label="moving-average-window" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
+        <select aria-label="moving-average-window" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))} style={{ color: '#000', background: '#fff' }}>
           <option value={7}>7 days</option>
           <option value={14}>14 days</option>
           <option value={21}>21 days</option>
