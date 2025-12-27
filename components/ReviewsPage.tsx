@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ReviewsList from './ReviewsList';
 import RatingChart from './RatingChart';
 import { computeDailyMovingAverage } from '../lib/reviews';
@@ -15,10 +15,26 @@ type Props = {
 export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', initialPages = 3 }: Props) {
   const [appId, setAppId] = useState(initialAppId);
   const [country, setCountry] = useState(initialCountry);
-  const [pages, setPages] = useState(initialPages);
+  // pages can be overridden by the `pages` query param in the URL; default to initialPages (3)
+  const [pages, setPages] = useState<number>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const p = params.get('pages');
+        if (p) {
+          const n = Number(p);
+          if (Number.isInteger(n) && n > 0) return n;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return initialPages;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const didInitUrlRef = useRef(false);
 
   async function load() {
     setLoading(true);
@@ -42,6 +58,35 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep the `pages` query param in the URL in sync with the pages state.
+  React.useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const current = params.get('pages');
+      const wanted = String(pages);
+      if (current !== wanted) {
+        if (pages === undefined || pages === null) {
+          params.delete('pages');
+        } else {
+          params.set('pages', wanted);
+        }
+        const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '') + window.location.hash;
+        // Replace history so back button behavior isn't affected
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch (_err) {
+      // ignore
+    }
+    // Note: we intentionally do not include window in deps
+  }, [pages]);
+
+  // Ensure we only attempt to parse URL once on mount for other effects if needed
+  React.useEffect(() => {
+    if (didInitUrlRef.current) return;
+    didInitUrlRef.current = true;
+  }, []);
+
   const chartData = computeDailyMovingAverage(reviews, 7);
 
   return (
@@ -53,7 +98,15 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
         <label style={{ marginLeft: 8 }}>Country</label>
         <input value={country} onChange={(e) => setCountry(e.target.value)} style={{ width: 40 }} />
         <label style={{ marginLeft: 8 }}>Pages</label>
-        <input type="number" value={pages} onChange={(e) => setPages(Number(e.target.value))} style={{ width: 60 }} />
+        <input type="number" value={pages} onChange={(e) => {
+          const v = Number(e.target.value);
+          if (!Number.isFinite(v) || v < 1) {
+            // ignore invalid input but still update local input display
+            setPages(1);
+            return;
+          }
+          setPages(Math.trunc(v));
+        }} style={{ width: 60 }} />
         <button onClick={load} style={{ marginLeft: 8 }}>Load</button>
       </div>
 
