@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import ReviewsList from './ReviewsList';
 import RatingChart from './RatingChart';
+import { computeDailyCumulativeAverages } from '../lib/reviews';
 import type { Review } from '../lib/reviews';
 
 type Props = {
@@ -41,6 +42,8 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const chartData = computeDailyCumulativeAverages(reviews);
+
   return (
     <div style={{ padding: 20 }}>
       <h1>App Store Reviews</h1>
@@ -57,7 +60,7 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
       {loading && <div>Loading…</div>}
       {error && <div role="alert">Error: {error}</div>}
 
-      <RatingChart reviews={reviews} />
+      <RatingChart data={chartData} />
 
       <ReviewsList reviews={reviews} />
     </div>

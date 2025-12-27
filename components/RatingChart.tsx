@@ -1,94 +1,63 @@
 import React from 'react';
-import type { Review } from '../lib/reviews';
+import type { ChartPoint } from '../lib/reviews';
 
-type Props = { reviews: Review[] };
+type Props = { data: ChartPoint[] };
 
-export default function RatingChart({ reviews }: Props) {
-  if (!reviews || reviews.length === 0) {
-    return null;
-  }
+export default function RatingChart({ data }: Props) {
+  const [Recharts, setRecharts] = React.useState<any | null>(null);
 
-  // Aggregate by day (YYYY-MM-DD)
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of reviews) {
-    const d = new Date(r.date);
-    if (Number.isNaN(d.getTime())) continue;
-    const day = d.toISOString().slice(0, 10);
-    const cur = byDay.get(day) ?? { sum: 0, count: 0 };
-    cur.sum += Number(r.rating) || 0;
-    cur.count += 1;
-    byDay.set(day, cur);
-  }
+  React.useEffect(() => {
+    let cancelled = false;
+    // Dynamically import Recharts so tests can run even if the dependency isn't installed.
+    import('recharts')
+      .then((mod) => {
+        if (!cancelled) setRecharts(mod);
+      })
+      .catch(() => {
+        // Module not available; keep Recharts null to render fallback
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const points = Array.from(byDay.entries())
-    .map(([day, v]) => ({ day, avg: v.count ? v.sum / v.count : 0 }))
-    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  if (!data || data.length === 0) return null;
 
-  if (points.length === 0) return null;
-
-  // SVG sizing
-  const width = 600;
-  const height = 120;
-  const padding = 16;
-  const innerW = width - padding * 2;
-  const innerH = height - padding * 2;
-
-  const maxRating = 5;
-  const minRating = 0;
-
-  const xFor = (i: number) => (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW) + padding;
-  const yFor = (avg: number) => padding + ((maxRating - avg) / (maxRating - minRating)) * innerH;
-
-  const pathD = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(2)} ${yFor(p.avg).toFixed(2)}`)
-    .join(' ');
-
-  // Area path (down to baseline)
-  const areaD = `${pathD} L ${xFor(points.length - 1).toFixed(2)} ${yFor(minRating).toFixed(2)} L ${xFor(0).toFixed(2)} ${yFor(minRating).toFixed(2)} Z`;
-
-  const first = points[0];
-  const last = points[points.length - 1];
-
-  const overallAvg = points.reduce((s, p) => s + p.avg, 0) / points.length;
+  const last = data[data.length - 1];
 
   return (
-    <div style={{ marginBottom: 12 }} aria-hidden={false} aria-label="average-rating-chart">
+    <div style={{ marginBottom: 12 }} aria-label="average-rating-chart">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <strong>Average rating over time</strong>
         <div style={{ fontSize: 12, color: '#555' }}>
-          {points.length} day{points.length !== 1 ? 's' : ''} · Avg {overallAvg.toFixed(2)}
+          {data.length} point{data.length !== 1 ? 's' : ''} · Avg {last.cumulativeAverage.toFixed(2)}
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label="Average rating chart">
-        <defs>
-          <linearGradient id="grad" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.03" />
-          </linearGradient>
-        </defs>
-
-        {/* grid lines */}
-        {[0, 1, 2, 3, 4, 5].map((v) => {
-          const y = yFor(v);
-          return <line key={v} x1={padding} x2={width - padding} y1={y} y2={y} stroke="#eee" strokeWidth={1} />;
-        })}
-
-        {/* area */}
-        <path d={areaD} fill="url(#grad)" stroke="none" />
-
-        {/* line */}
-        <path d={pathD} fill="none" stroke="#4f46e5" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-
-        {/* points */}
-        {points.map((p, i) => (
-          <circle key={p.day} cx={xFor(i)} cy={yFor(p.avg)} r={3.5} fill="#fff" stroke="#4f46e5" strokeWidth={1.5} />
-        ))}
-
-        {/* labels: first and last date small */}
-        <text x={padding} y={height - 4} fontSize={10} fill="#666">{first.day}</text>
-        <text x={width - padding} y={height - 4} fontSize={10} fill="#666" textAnchor="end">{last.day}</text>
-      </svg>
+      {Recharts ? (
+        <div style={{ width: '100%', height: 180 }} data-testid="rating-chart">
+          <Recharts.ResponsiveContainer width="100%" height="100%">
+            <Recharts.LineChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 24 }}>
+              <Recharts.CartesianGrid strokeDasharray="3 3" />
+              <Recharts.XAxis dataKey="date" tick={{ fontSize: 12 }} label={{ value: 'Date', position: 'bottom', offset: 0 }} />
+              <Recharts.YAxis domain={[0, 5]} tick={{ fontSize: 12 }} label={{ value: 'Rating', angle: -90, position: 'insideLeft', offset: 0 }} />
+              <Recharts.Tooltip formatter={(value: any, name: any) => {
+                if (name === 'cumulativeAverage') return [(value as number).toFixed(2), 'Cumulative Avg'];
+                if (name === 'dailyAverage') return [(value as number).toFixed(2), 'Daily Avg'];
+                return [value, name];
+              }} labelFormatter={(label: any) => `Date: ${label}`} />
+              <Recharts.Line type="monotone" dataKey="cumulativeAverage" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} />
+              <Recharts.Line type="monotone" dataKey="dailyAverage" stroke="#60a5fa" strokeWidth={1.5} dot={false} opacity={0.6} />
+            </Recharts.LineChart>
+          </Recharts.ResponsiveContainer>
+        </div>
+      ) : (
+        // Fallback UI when 'recharts' cannot be imported (dev/test environments without the package)
+        <div data-testid="rating-chart-fallback" style={{ padding: 12, border: '1px dashed #ddd', borderRadius: 6 }}>
+          <div style={{ fontSize: 14, marginBottom: 6 }}>Chart (interactive view unavailable)</div>
+          <div style={{ fontSize: 12, color: '#333' }}>Latest average: {last.cumulativeAverage.toFixed(2)} (based on {last.cumulativeCount} reviews)</div>
+        </div>
+      )}
     </div>
   );
 }

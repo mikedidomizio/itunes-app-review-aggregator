@@ -25,6 +25,14 @@ export type FetchReviewsResult = {
   };
 };
 
+export type ChartPoint = {
+  date: string; // yyyy-mm-dd
+  dailyAverage: number;
+  dailyCount: number;
+  cumulativeAverage: number;
+  cumulativeCount: number;
+};
+
 async function safeJson(response: Response) {
   try {
     return await response.json();
@@ -168,4 +176,47 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
       partial,
     },
   };
+}
+
+// Compute daily aggregated and cumulative averages for charting.
+export function computeDailyCumulativeAverages(reviews: Review[]): ChartPoint[] {
+  if (!reviews || reviews.length === 0) return [];
+
+  // Map day -> { sum, count }
+  const byDay = new Map<string, { sum: number; count: number }>();
+
+  for (const r of reviews) {
+    const d = new Date(r.date);
+    if (Number.isNaN(d.getTime())) continue;
+    const day = d.toISOString().slice(0, 10); // yyyy-mm-dd in UTC
+    const cur = byDay.get(day) ?? { sum: 0, count: 0 };
+    const rating = Number(r.rating) || 0;
+    cur.sum += rating;
+    cur.count += 1;
+    byDay.set(day, cur);
+  }
+
+  // Sort days ascending
+  const days = Array.from(byDay.entries()).map(([day, v]) => ({ day, sum: v.sum, count: v.count })).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+
+  const points: ChartPoint[] = [];
+  let cumulativeSum = 0;
+  let cumulativeCount = 0;
+
+  for (const d of days) {
+    const dailyAverage = d.count ? d.sum / d.count : 0;
+    cumulativeSum += d.sum;
+    cumulativeCount += d.count;
+    const cumulativeAverage = cumulativeCount ? cumulativeSum / cumulativeCount : 0;
+
+    points.push({
+      date: d.day,
+      dailyAverage,
+      dailyCount: d.count,
+      cumulativeAverage,
+      cumulativeCount,
+    });
+  }
+
+  return points;
 }
