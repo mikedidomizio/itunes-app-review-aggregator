@@ -7,7 +7,9 @@ export async function GET(req: Request) {
     const appId = url.searchParams.get('appId') || url.searchParams.get('id');
     const country = url.searchParams.get('country') || 'us';
     const pagesParam = url.searchParams.get('pages');
-    const pages = pagesParam ? Math.max(1, Math.min(parseInt(pagesParam, 10) || 1, 50)) : 1;
+    // Default to 3 pages if not specified; clamp to [1,10]
+    const parsed = pagesParam ? parseInt(pagesParam, 10) || 0 : 0;
+    const pages = parsed > 0 ? Math.max(1, Math.min(parsed, 10)) : 3;
 
     if (!appId) {
       return NextResponse.json({ error: 'appId is required' }, { status: 400 });
@@ -22,4 +24,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'internal_server_error', details: String(e?.message || e) }, { status: 500 });
   }
 }
-

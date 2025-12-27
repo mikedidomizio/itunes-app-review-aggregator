@@ -13,6 +13,8 @@ type Props = {
 };
 
 export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', initialPages = 3 }: Props) {
+  const MAX_PAGES = 10;
+
   const [appId, setAppId] = useState(initialAppId);
   const [country, setCountry] = useState(initialCountry);
   // pages can be overridden by the `pages` query param in the URL; default to initialPages (3)
@@ -23,7 +25,7 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
         const p = params.get('pages');
         if (p) {
           const n = Number(p);
-          if (Number.isInteger(n) && n > 0) return n;
+          if (Number.isInteger(n) && n > 0) return Math.min(n, MAX_PAGES);
         }
       }
     } catch {
@@ -113,11 +115,13 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
         <input type="number" value={pages} onChange={(e) => {
           const v = Number(e.target.value);
           if (!Number.isFinite(v) || v < 1) {
-            // ignore invalid input but still update local input display
+            // keep within bounds
             setPages(1);
             return;
           }
-          setPages(Math.trunc(v));
+          // Clamp to [1, MAX_PAGES]
+          const clamped = Math.max(1, Math.min(Math.trunc(v), MAX_PAGES));
+          setPages(clamped);
         }} style={{ width: 60 }} />
         <label style={{ marginLeft: 12, marginRight: 8 }}>Window</label>
         <select aria-label="moving-average-window" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
