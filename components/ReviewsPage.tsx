@@ -37,7 +37,6 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
   const [windowDays, setWindowDays] = useState<number>(7);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const didInitUrlRef = useRef(false);
 
   async function load() {
@@ -50,7 +49,6 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
       const data = await res.json();
       setReviews(data.reviews || []);
     } catch (e: unknown) {
-      setError(String((e as Error)?.message ?? e));
     } finally {
       setLoading(false);
     }
@@ -107,9 +105,7 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
     <div style={{ padding: 20 }}>
       <h1>App Store Reviews</h1>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ marginRight: 8 }}>App ID</label>
-        <input value={appId} onChange={(e) => setAppId(e.target.value)} />
-        <label style={{ marginLeft: 8 }}>Country</label>
+      <h1>App Store Reviews</h1>
         <input value={country} onChange={(e) => setCountry(e.target.value)} style={{ width: 40 }} />
         <label style={{ marginLeft: 8 }}>Pages</label>
         <input aria-label="Pages" type="number" value={pages} onChange={(e) => {

@@ -22,7 +22,6 @@ export type FetchReviewsResult = {
     totalReviews: number;
     source: string;
     partial: boolean;
-  };
 };
 
 export type ChartPoint = {
@@ -139,7 +138,6 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
   let fetched = 0;
   let partial = false;
 
-  for (let i = 0; i < requestedPages; i++) {
     const currentUrl = nextUrl;
     if (!currentUrl) break;
     fetched += 1;
@@ -153,14 +151,6 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
 
       const reviews = parseReviewsFromFeed(json, country);
       collected.push(...reviews);
-      const found = findNextLink(json);
-
-      // If no next link found, stop fetching instead of throwing
-      nextUrl = found ?? null;
-      if (!nextUrl) break;
-    } catch (err: unknown) {
-      // Use the caught error to help debugging but continue to set partial flag
-      // eslint-disable-next-line no-console
       console.error('fetchReviews error:', err);
       partial = collected.length > 0;
       break;
@@ -185,7 +175,6 @@ export function computeDailyCumulativeAverages(reviews: Review[]): ChartPoint[] 
 
   // Map day -> { sum, count }
   const byDay = new Map<string, { sum: number; count: number }>();
-
   for (const r of reviews) {
     const d = new Date(r.date);
     if (Number.isNaN(d.getTime())) continue;
