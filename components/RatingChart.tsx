@@ -1,9 +1,9 @@
 import React from 'react';
 import type { ChartPoint } from '../lib/reviews';
 
-type Props = { data: ChartPoint[] };
+type Props = { data: ChartPoint[]; windowLabel?: string };
 
-export default function RatingChart({ data }: Props) {
+export default function RatingChart({ data, windowLabel }: Props) {
   const [Recharts, setRecharts] = React.useState<any | null>(null);
 
   React.useEffect(() => {
@@ -43,7 +43,10 @@ export default function RatingChart({ data }: Props) {
   return (
     <div style={{ marginBottom: 12 }} aria-label="average-rating-chart">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <strong>Average rating over time</strong>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <strong>Average rating over time</strong>
+          {windowLabel && <span style={{ fontSize: 12, color: '#666' }}>({windowLabel})</span>}
+        </div>
         <div style={{ fontSize: 12, color: '#555' }}>
           {data.length} point{data.length !== 1 ? 's' : ''} · Avg {last.movingAverage ? last.movingAverage.toFixed(2) : last.cumulativeAverage.toFixed(2)}
         </div>

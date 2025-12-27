@@ -14,6 +14,11 @@ describe('ReviewsPage', () => {
 
     render(<ReviewsPage />);
 
+    // The moving average window select should exist and default to 7 days
+    const select = screen.getByLabelText('moving-average-window') as HTMLSelectElement;
+    expect(select).toBeInTheDocument();
+    expect(select.value).toBe('7');
+
     // Click Load
     const btn = screen.getByText('Load');
     await userEvent.click(btn);

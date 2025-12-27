@@ -31,6 +31,8 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
     }
     return initialPages;
   });
+  // Moving average window (days). Default to 7.
+  const [windowDays, setWindowDays] = useState<number>(7);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -87,7 +89,17 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
     didInitUrlRef.current = true;
   }, []);
 
-  const chartData = computeDailyMovingAverage(reviews, 7);
+  const chartData = computeDailyMovingAverage(reviews, windowDays);
+
+  // Map numeric window to human-friendly label for display
+  const windowLabel = (() => {
+    if (windowDays === 7) return '7-day';
+    if (windowDays === 14) return '14-day';
+    if (windowDays === 21) return '21-day';
+    if (windowDays === 30) return '1 month';
+    if (windowDays === 182) return '6 months';
+    return `${windowDays}-day`;
+  })();
 
   return (
     <div style={{ padding: 20 }}>
@@ -107,13 +119,21 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
           }
           setPages(Math.trunc(v));
         }} style={{ width: 60 }} />
+        <label style={{ marginLeft: 12, marginRight: 8 }}>Window</label>
+        <select aria-label="moving-average-window" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
+          <option value={7}>7 days</option>
+          <option value={14}>14 days</option>
+          <option value={21}>21 days</option>
+          <option value={30}>1 month</option>
+          <option value={182}>6 months</option>
+        </select>
         <button onClick={load} style={{ marginLeft: 8 }}>Load</button>
       </div>
 
       {loading && <div>Loading…</div>}
       {error && <div role="alert">Error: {error}</div>}
 
-      <RatingChart data={chartData} />
+      <RatingChart data={chartData} windowLabel={windowLabel} />
 
       <ReviewsList reviews={reviews} />
     </div>
