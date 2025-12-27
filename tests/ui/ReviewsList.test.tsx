@@ -19,5 +19,9 @@ describe('ReviewsList', () => {
     // Has list with aria-label
     expect(screen.getByLabelText('reviews-list')).toBeInTheDocument();
   });
-});
 
+  it('hides empty message while loading', () => {
+    const { queryByText } = render(<ReviewsList reviews={[]} loading={true} />);
+    expect(queryByText('No reviews found.')).toBeNull();
+  });
+});

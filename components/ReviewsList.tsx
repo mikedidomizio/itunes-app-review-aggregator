@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Review } from '../lib/reviews';
 
-export default function ReviewsList({ reviews }: { reviews: Review[] }) {
+export default function ReviewsList({ reviews, loading }: { reviews: Review[]; loading?: boolean }) {
   if (!reviews || reviews.length === 0) {
+    if (loading) return null; // hide the empty message while loading
     return <div>No reviews found.</div>;
   }
 
@@ -24,4 +25,3 @@ export default function ReviewsList({ reviews }: { reviews: Review[] }) {
     </ul>
   );
 }
-

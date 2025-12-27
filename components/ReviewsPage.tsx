@@ -112,7 +112,7 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
         <label style={{ marginLeft: 8 }}>Country</label>
         <input value={country} onChange={(e) => setCountry(e.target.value)} style={{ width: 40 }} />
         <label style={{ marginLeft: 8 }}>Pages</label>
-        <input type="number" value={pages} onChange={(e) => {
+        <input aria-label="Pages" type="number" value={pages} onChange={(e) => {
           const v = Number(e.target.value);
           if (!Number.isFinite(v) || v < 1) {
             // keep within bounds
@@ -139,7 +139,7 @@ export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', 
 
       <RatingChart data={chartData} windowLabel={windowLabel} />
 
-      <ReviewsList reviews={reviews} />
+      <ReviewsList reviews={reviews} loading={loading} />
     </div>
   );
 }
