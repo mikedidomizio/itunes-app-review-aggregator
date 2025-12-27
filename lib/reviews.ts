@@ -31,6 +31,7 @@ export type ChartPoint = {
   dailyCount: number;
   cumulativeAverage: number;
   cumulativeCount: number;
+  movingAverage?: number; // optional moving average over recent days
 };
 
 async function safeJson(response: Response) {
@@ -220,3 +221,59 @@ export function computeDailyCumulativeAverages(reviews: Review[]): ChartPoint[] 
 
   return points;
 }
+
+// Compute moving average over the past `windowDays` days (inclusive) for each day.
+export function computeDailyMovingAverage(reviews: Review[], windowDays = 7): ChartPoint[] {
+  if (!reviews || reviews.length === 0) return [];
+
+  const byDay = new Map<string, { sum: number; count: number }>();
+  for (const r of reviews) {
+    const d = new Date(r.date);
+    if (Number.isNaN(d.getTime())) continue;
+    const day = d.toISOString().slice(0, 10);
+    const cur = byDay.get(day) ?? { sum: 0, count: 0 };
+    const rating = Number(r.rating) || 0;
+    cur.sum += rating;
+    cur.count += 1;
+    byDay.set(day, cur);
+  }
+
+  // Sorted days
+  const days = Array.from(byDay.entries()).map(([day, v]) => ({ day, sum: v.sum, count: v.count })).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+
+  const points: ChartPoint[] = [];
+  // Precompute prefix sums for sums and counts to compute window sums efficiently
+  const prefixSums: number[] = [];
+  const prefixCounts: number[] = [];
+  for (let i = 0; i < days.length; i++) {
+    prefixSums[i] = (prefixSums[i - 1] ?? 0) + days[i].sum;
+    prefixCounts[i] = (prefixCounts[i - 1] ?? 0) + days[i].count;
+  }
+
+  for (let i = 0; i < days.length; i++) {
+    const windowStartIndex = Math.max(0, i - (windowDays - 1));
+    const windowSum = prefixSums[i] - (prefixSums[windowStartIndex - 1] ?? 0);
+    const windowCount = prefixCounts[i] - (prefixCounts[windowStartIndex - 1] ?? 0);
+    const movingAverage = windowCount ? windowSum / windowCount : 0;
+
+    // Compute daily and cumulative as well (reuse logic)
+    // dailyAverage for this day
+    const dailyAverage = days[i].count ? days[i].sum / days[i].count : 0;
+    // cumulative up to i
+    const cumulativeSum = prefixSums[i];
+    const cumulativeCount = prefixCounts[i];
+    const cumulativeAverage = cumulativeCount ? cumulativeSum / cumulativeCount : 0;
+
+    points.push({
+      date: days[i].day,
+      dailyAverage,
+      dailyCount: days[i].count,
+      cumulativeAverage,
+      cumulativeCount,
+      movingAverage,
+    });
+  }
+
+  return points;
+}
+

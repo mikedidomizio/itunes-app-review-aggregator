@@ -25,12 +25,27 @@ export default function RatingChart({ data }: Props) {
 
   const last = data[data.length - 1];
 
+  // Custom tooltip renderer to style date darker and show moving avg and daily avg
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const ma = payload.find((p: any) => p.dataKey === 'movingAverage');
+    const da = payload.find((p: any) => p.dataKey === 'dailyAverage');
+
+    return (
+      <div style={{ background: 'white', border: '1px solid #ddd', padding: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <div style={{ color: '#111', fontWeight: 600, marginBottom: 4 }}>{`Date: ${label}`}</div>
+        {ma && <div style={{ color: '#4f46e5' }}>Moving Avg: {Number(ma.value).toFixed(2)}</div>}
+        {da && <div style={{ color: '#60a5fa' }}>Daily Avg: {Number(da.value).toFixed(2)}</div>}
+      </div>
+    );
+  };
+
   return (
     <div style={{ marginBottom: 12 }} aria-label="average-rating-chart">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <strong>Average rating over time</strong>
         <div style={{ fontSize: 12, color: '#555' }}>
-          {data.length} point{data.length !== 1 ? 's' : ''} · Avg {last.cumulativeAverage.toFixed(2)}
+          {data.length} point{data.length !== 1 ? 's' : ''} · Avg {last.movingAverage ? last.movingAverage.toFixed(2) : last.cumulativeAverage.toFixed(2)}
         </div>
       </div>
 
@@ -41,12 +56,8 @@ export default function RatingChart({ data }: Props) {
               <Recharts.CartesianGrid strokeDasharray="3 3" />
               <Recharts.XAxis dataKey="date" tick={{ fontSize: 12 }} label={{ value: 'Date', position: 'bottom', offset: 0 }} />
               <Recharts.YAxis domain={[0, 5]} tick={{ fontSize: 12 }} label={{ value: 'Rating', angle: -90, position: 'insideLeft', offset: 0 }} />
-              <Recharts.Tooltip formatter={(value: any, name: any) => {
-                if (name === 'cumulativeAverage') return [(value as number).toFixed(2), 'Cumulative Avg'];
-                if (name === 'dailyAverage') return [(value as number).toFixed(2), 'Daily Avg'];
-                return [value, name];
-              }} labelFormatter={(label: any) => `Date: ${label}`} />
-              <Recharts.Line type="monotone" dataKey="cumulativeAverage" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} />
+              <Recharts.Tooltip content={<CustomTooltip />} />
+              <Recharts.Line type="monotone" dataKey="movingAverage" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} />
               <Recharts.Line type="monotone" dataKey="dailyAverage" stroke="#60a5fa" strokeWidth={1.5} dot={false} opacity={0.6} />
             </Recharts.LineChart>
           </Recharts.ResponsiveContainer>
@@ -55,7 +66,7 @@ export default function RatingChart({ data }: Props) {
         // Fallback UI when 'recharts' cannot be imported (dev/test environments without the package)
         <div data-testid="rating-chart-fallback" style={{ padding: 12, border: '1px dashed #ddd', borderRadius: 6 }}>
           <div style={{ fontSize: 14, marginBottom: 6 }}>Chart (interactive view unavailable)</div>
-          <div style={{ fontSize: 12, color: '#333' }}>Latest average: {last.cumulativeAverage.toFixed(2)} (based on {last.cumulativeCount} reviews)</div>
+          <div style={{ fontSize: 12, color: '#333' }}>Latest moving avg: {last.movingAverage ? last.movingAverage.toFixed(2) : last.cumulativeAverage.toFixed(2)} (based on {last.cumulativeCount || last.dailyCount} reviews)</div>
         </div>
       )}
     </div>
