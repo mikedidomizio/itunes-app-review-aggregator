@@ -1,13 +1,19 @@
 "use client";
 
 import React, { useState } from 'react';
-import ReviewsList from '../../components/ReviewsList';
-import type { Review } from '../../lib/reviews';
+import ReviewsList from './ReviewsList';
+import type { Review } from '../lib/reviews';
 
-export default function ReviewsPage() {
-  const [appId, setAppId] = useState('1465992052');
-  const [country, setCountry] = useState('ca');
-  const [pages, setPages] = useState(3);
+type Props = {
+  initialAppId: string;
+  initialCountry?: string;
+  initialPages?: number;
+};
+
+export default function ReviewsPage({ initialAppId, initialCountry = 'ca', initialPages = 3 }: Props) {
+  const [appId, setAppId] = useState(initialAppId);
+  const [country, setCountry] = useState(initialCountry);
+  const [pages, setPages] = useState(initialPages);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -16,7 +22,9 @@ export default function ReviewsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/${encodeURIComponent(appId)}?country=${encodeURIComponent(country)}&pages=${pages}`);
+      // Fetch from the new base API path. If appId is present we'll call /api/{appId} which is handled by app/api/[appId]/route.ts
+      const encodedApp = encodeURIComponent(appId);
+      const res = await fetch(`/api/reviews?appId=${encodedApp}&country=${encodeURIComponent(country)}&pages=${pages}`);
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
       setReviews(data.reviews || []);

@@ -7,7 +7,7 @@ import { vi } from 'vitest';
 describe('ReviewsPage', () => {
   it('loads and displays reviews from the API', async () => {
     const fakeApi = { reviews: [{ id: '1', author: 'Alice', content: 'Nice', rating: 5, date: new Date().toISOString() }], meta: { pagesFetched: 1, requestedPages: 1, totalReviews: 1, source: 'test', partial: false } };
-    // Mock fetch for /api/reviews
+    // Mock fetch for /api (used to be /api/reviews)
     vi.stubGlobal('fetch', vi.fn(async () => {
       return { ok: true, json: async () => fakeApi } as unknown as Response;
     }));
