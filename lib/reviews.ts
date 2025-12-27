@@ -83,14 +83,22 @@ function findNextLink(json: unknown): string | null {
   const links = feed?.['link'];
 
   const inspectLink = (l: any): string | null => {
-    if (l.attributes.rel === 'next' && typeof l.attributes.href === 'string') {
-      const matches = l.attributes.href.match(/\/(page=\d+\/id=\d+\/sortby=mostrecent)\/xml\?/);
-      if (matches && matches.length) {
-        // todo hardcoded country code `ca`
-        return `https://itunes.apple.com/ca/rss/customerreviews/${matches[1]}/json`;
+    // support links shaped as { attributes: { rel, href } } or { rel, href }
+    const attrs = l && (l.attributes ?? l);
+    if (attrs && typeof attrs === 'object') {
+      const rel = attrs.rel ?? attrs.attributes?.rel;
+      const href = attrs.href ?? attrs.attributes?.href;
+      if (rel === 'next' && typeof href === 'string') {
+        const matches = href.match(/\/(page=\d+\/id=\d+\/sortby=mostrecent)\/xml\?/);
+        if (matches && matches.length) {
+          // todo hardcoded country code `ca`
+          return `https://itunes.apple.com/ca/rss/customerreviews/${matches[1]}/json`;
+        }
+        // If href is already a rss/json url or other string, return it
+        return href;
       }
     }
-    return null
+    return null;
   };
 
   if (Array.isArray(links)) {
@@ -138,10 +146,9 @@ export async function fetchReviews({ appId, country = 'us', pages = 1, maxPages 
       collected.push(...reviews);
       const found = findNextLink(json);
 
-      if (!found) {
-        throw new Error('?')
-      }
+      // If no next link found, stop fetching instead of throwing
       nextUrl = found ?? null;
+      if (!nextUrl) break;
     } catch (err: unknown) {
       // Use the caught error to help debugging but continue to set partial flag
       // eslint-disable-next-line no-console

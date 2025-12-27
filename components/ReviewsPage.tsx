@@ -5,12 +5,12 @@ import ReviewsList from './ReviewsList';
 import type { Review } from '../lib/reviews';
 
 type Props = {
-  initialAppId: string;
+  initialAppId?: string;
   initialCountry?: string;
   initialPages?: number;
 };
 
-export default function ReviewsPage({ initialAppId, initialCountry = 'ca', initialPages = 3 }: Props) {
+export default function ReviewsPage({ initialAppId = '', initialCountry = 'ca', initialPages = 3 }: Props) {
   const [appId, setAppId] = useState(initialAppId);
   const [country, setCountry] = useState(initialCountry);
   const [pages, setPages] = useState(initialPages);
@@ -22,7 +22,6 @@ export default function ReviewsPage({ initialAppId, initialCountry = 'ca', initi
     setLoading(true);
     setError(null);
     try {
-      // Fetch from the new base API path. If appId is present we'll call /api/{appId} which is handled by app/api/[appId]/route.ts
       const encodedApp = encodeURIComponent(appId);
       const res = await fetch(`/api/reviews?appId=${encodedApp}&country=${encodeURIComponent(country)}&pages=${pages}`);
       if (!res.ok) throw new Error(`status ${res.status}`);
@@ -38,8 +37,6 @@ export default function ReviewsPage({ initialAppId, initialCountry = 'ca', initi
   React.useEffect(() => {
     // Auto-load reviews once when the component mounts
     load();
-    // Intentionally run only once on mount. If you want auto-reload when inputs change,
-    // add appId/country/pages to the dependency array.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

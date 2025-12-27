@@ -6,6 +6,8 @@ export default function ReviewsList({ reviews }: { reviews: Review[] }) {
     return <div>No reviews found.</div>;
   }
 
+  console.log(reviews.length)
+
   return (
     <ul aria-label="reviews-list">
       {reviews.map((r) => (
