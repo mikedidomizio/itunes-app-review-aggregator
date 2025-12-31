@@ -1,5 +1,5 @@
 {
-  "name": "itunes-app-review-collector",
+  "name": "itunes-app-review-aggregator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
